@@ -21,6 +21,7 @@ public class Client implements Runnable {
   private static BufferedReader toServer = null;
   private static boolean closed = false;
   
+//Attempt to connect to the Server, if cannot connect, wait 2.5 seconds and try again.
   private static Socket connect( String host, int port ) throws Exception
   {
     try
@@ -35,6 +36,7 @@ public class Client implements Runnable {
     }
   }
   
+//To validate the user entered a vaild port number. Makes sure its only digits from 1024-65535
   private static boolean validatePort(String num) {
     	Pattern pattern = Pattern.compile("[0-9]+"); //checks if it is a digit
 		if(pattern.matcher(num).matches()) {
@@ -51,22 +53,21 @@ public class Client implements Runnable {
 		return false;
 }
   
-  public static void main(String[] args) 
+  public static void main(String[] args) throws IOException
   {
     Scanner sc = new Scanner(System.in);
     int port = 0;
-    Socket socket;
-    String name, hostname, portAttempt;
-    //If there arn't 3 command line arguments force the application to close
-    if( args.length != 3)
+    String hostname, portAttempt;
+    //If there arn't 2 command line arguments force the application to close
+    if( args.length != 2)
     {
-        System.out.println("Not enough arguments to connect to server, please specify IP/Hostname, Port and Username in that order when connecting.");
+        System.out.println("Not enough arguments to connect to server, please specify IP/Hostname and Port in that order when connecting.");
         System.exit(1);
     }
     
+    //Validate port
     boolean portValid = validatePort(args[1]);
     hostname = args[0];
-    name = args[2];
 
     if(portValid)
     {
@@ -98,56 +99,45 @@ public class Client implements Runnable {
     } catch (UnknownHostException e) {
       System.err.println("Don't know about host " + hostname);
     } catch (IOException e) {
-      System.err.println("Couldn't get I/O for the connection to the host "
+      System.err.println("Unable to retrieve I/O connection to host "
           + hostname);
     } catch(Exception e) {
       System.err.println(e);
     }
 
-    /*
-     * If everything has been initialized then we want to write some data to the
-     * socket we have opened a connection to on the port portNumber.
-     */
+
     if (userSocket != null && os != null && is != null) {
       try {
 
-        /* Create a thread to read from the server. */
+        //Create a thread for reading from server
         new Thread(new Client()).start();
         while (!closed) {
           os.println(toServer.readLine().trim());
         }
-        /*
-         * Close the output stream, close the input stream, close the socket.
-         */
+   
         os.close();
         is.close();
         userSocket.close();
       } catch (IOException e) {
-        System.err.println("IOException:  " + e);
+        System.out.println("Connection to the Server has been lost.");
       }
     }
   }
-
-  /*
-   * Create a thread to read from the server. (non-Javadoc)
-   * 
-   * @see java.lang.Runnable#run()
-   */
+ 
+  //Create a thread to run take input from user until server closes or client chooses to exit.
   public void run() {
-    /*
-     * Keep on reading from the socket till we receive "Bye" from the
-     * server. Once we received that then we want to break.
-     */
     String responseLine;
     try {
       while ((responseLine = is.readLine()) != null) {
         System.out.println(responseLine);
-        if (responseLine.indexOf("*** Bye") != -1)
+        if (responseLine.indexOf("$$$ Bye") != -1)
           break;
       }
       closed = true;
     } catch (IOException e) {
       System.err.println("IOException:  " + e);
-    }
+      System.out.println("Unexpected shut down. Goodbye");
+      System.exit(1);
+    } 
   }
 }

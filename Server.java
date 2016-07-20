@@ -12,9 +12,7 @@ import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.concurrent.locks.ReentrantLock;
 
-/*
- * A chat server that delivers public and private messages.
- */
+
 public class Server {
     
   //12 current colors, need this number to make sure we dont go outofbounds on color array
@@ -26,7 +24,7 @@ public class Server {
   // The client socket.
   private static Socket clientSocket = null;
 
-  // This chat server can accept up to maxClientsCount clients' connections.
+
   private static final int maxClientsCount = 20;
   private static final clientThread[] threads = new clientThread[maxClientsCount];
  
@@ -51,20 +49,14 @@ public class Server {
       System.exit(1);
     }
 
-    /*
-     * Open a server socket on the portNumber (default 2222). Note that we can
-     * not choose a port less than 1023 if we are not privileged users (root).
-     */
+
     try {
       serverSocket = new ServerSocket(portNumber);
     } catch (IOException e) {
       System.out.println(e);
     }
 
-    /*
-     * Create a client socket for each connection and pass it to a new client
-     * thread.
-     */
+
     while (true) {
       try {
         clientSocket = serverSocket.accept();
@@ -92,18 +84,6 @@ public class Server {
   }
 }
 
-
-
-
-/*
- * The chat client thread. This client thread opens the input and the output
- * streams for a particular client, ask the client's name, informs all the
- * clients connected to the server about the fact that a new client has joined
- * the chat room, and as long as it receive data, echos that data back to all
- * other clients. The thread broadcast the incoming messages to all clients and
- * routes the private message to the particular client. When a client leaves the
- * chat room this thread informs also all the clients about that and terminates.
- */
 
 class clientThread extends Thread {
     
@@ -180,8 +160,6 @@ class clientThread extends Thread {
          BufferedWriter bw = new BufferedWriter(fw);
          PrintWriter toHistory = new PrintWriter(bw)){
 
-       // Create input and output streams for this client.
-
       is = new DataInputStream(socket.getInputStream());
       os = new PrintStream(socket.getOutputStream());
       
@@ -191,7 +169,7 @@ class clientThread extends Thread {
             while (true) {
                 name = is.readLine().trim();
                 if (name.startsWith("@name")) {
-                    name = name.substring(6, name.length());
+                    name = name.substring(6, name.length()).toLowerCase();
                     if (!Server.activeUsers.contains(name)) {
                         Server.activeUsers.add(name);
                         break;
@@ -218,10 +196,27 @@ class clientThread extends Thread {
           }
         }
       }
-      // Start the conversation. 
+
       while (true) {
         String line = is.readLine();
+        if(!active.isEmpty())
+        {
+            for(int i=0; i < active.size(); i++)
+            {
+                if(!Server.activeUsers.contains(active.get(i).getName()))
+                {
+                    this.os.println("Ended private conversation with " + active.get(i).getName()
+                                        + " because they are no longer active in the chatroom");
+                    active.remove(i);
+                }
+            }
+        }
         if (line.startsWith("@exit")) {
+          for(int i=0; i < active.size(); i++)
+          {
+                active.get(i).lock.unlock();
+                active.remove(i);
+          }
           break;
         }
         else if(line.startsWith("@end"))
@@ -244,6 +239,8 @@ class clientThread extends Thread {
                                 releaseClientSocket(activeUsers, words[1]).lock.unlock();
                                 this.os.println("Stopped private communication with user: " + words[1]);
                             }
+                            else
+                                this.os.println("Username entered does not match a user you are in a private communication with");
                         }
                     }
                 }
@@ -311,15 +308,19 @@ class clientThread extends Thread {
               && activeUsers[i].clientName != null) {
             activeUsers[i].os.println("*** The user " + name
                 + " is leaving the chat room !!! ***");
+            activeUsers[i].active.remove(this);
           }
+          //if(activeUsers[i].active.contains(this))
+          //{
+            //activeUsers[i].os.println("Stopped private communication with user: " + name
+            //                            + " Because the user has disconnected");
+            //activeUsers[i].releaseClientSocket(activeUsers, name).lock.unlock();
+
+            //}
         }
-      }
+    }
       os.println("*** Bye " + name + " ***");
 
-      
-        //Clean up. Set the current thread variable to null so that a new client
-        //could be accepted by the server.
-       
       synchronized (this) {
         for (int i = 0; i < maxUserCount; i++) {
           if (activeUsers[i] == this) {
@@ -328,8 +329,7 @@ class clientThread extends Thread {
         }
       }
       
-        // Close the output stream, close the input stream, close the socket.
-       
+
       is.close();
       os.close();
       socket.close();
@@ -337,6 +337,6 @@ class clientThread extends Thread {
     } catch (IOException e) {
     }
     catch (Exception e) {
-    }
+    } 
   }
 } 
